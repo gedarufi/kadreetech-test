@@ -1,4 +1,4 @@
-import { Controller } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 
 import { GetAllController } from 'src/core/get-all.decorator';
 import { GetOneController } from 'src/core/get-one.decorator';
@@ -15,4 +15,21 @@ import { AccountService } from '../service/account.service';
 @InsertController<Account>({ service: AccountService })
 @UpdateController<Account>({ service: AccountService })
 @DeleteController<Account>({ service: AccountService })
-export class AccountController {}
+export class AccountController {
+  constructor(private readonly accountService: AccountService) {}
+
+  @Get('balance/:year/:month')
+  public async getAmountTransactions(
+    @Param('year') year: number,
+    @Param('month') month: number,
+  ) {
+    return this.accountService.getCountTransactions(year, month);
+  }
+
+  @Get('withdraw-foreign')
+  public async withdrawForeign() {
+    const minAmount = 1000000;
+
+    return this.accountService.withdrawForeign(minAmount);
+  }
+}
