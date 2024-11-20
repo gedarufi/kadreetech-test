@@ -1,24 +1,41 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RabbitMQModule } from '@golevelup/nestjs-rabbitmq';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ParameterModule } from './parameter/parameter.module';
 import { ClientModule } from './client/client.module';
 
+import databaseConfig from './config/database.config';
+import rabbitmqConfig from './config/rabbitmq.config';
+
 @Module({
   imports: [
-    ConfigModule.forRoot(),
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DATABASE_HOST,
-      port: parseInt(process.env.DATABASE_PORT, 10),
-      username: process.env.DATABASE_USERNAME,
-      password: process.env.DATABASE_PASSWORD,
-      database: process.env.DATABASE_NAME,
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false, // Set to false in production,
-      logging: process.env.NODE_ENV === 'development',
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [databaseConfig, rabbitmqConfig],
+    }),
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) =>
+        ({
+          type: 'postgres',
+          synchronize: false,
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          ...configService.get('database'),
+        }) as TypeOrmModuleOptions,
+    }),
+    RabbitMQModule.forRootAsync(RabbitMQModule, {
+      inject: [ConfigService],
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get('rabbitmq').url,
+        prefetchCount: 1,
+        noAck: false,
+      }),
     }),
     ParameterModule,
     ClientModule,
